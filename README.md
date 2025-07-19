@@ -10,13 +10,16 @@ Este proyecto implementa un agente de IA con la personalidad de David Goggins qu
 - **Base de Datos Supabase**: Almacenamiento persistente de records
 - **Memoria de Conversación**: Contexto de entrenamientos anteriores
 - **Análisis de Progreso**: Comparación automática con records anteriores
+- **Integración WhatsApp**: Via Twilio con webhook automático
+- **API REST**: FastAPI con documentación automática
 
 ## 📋 Requisitos Previos
 
 1. **Python 3.8+** instalado
 2. **Cuenta de OpenAI** con saldo disponible
 3. **Proyecto Supabase** configurado
-4. **API Key de OpenAI**
+4. **Cuenta de Twilio** con WhatsApp habilitado
+5. **ngrok** instalado para tunneling
 
 ## 🔧 Instalación
 
@@ -31,7 +34,21 @@ Este proyecto implementa un agente de IA con la personalidad de David Goggins qu
    pip install -r requirements.txt
    ```
 
-3. **Configurar variables de entorno**
+3. **Instalar ngrok** (si no lo tienes)
+   ```bash
+   # Windows (con chocolatey)
+   choco install ngrok
+   
+   # macOS (con homebrew)
+   brew install ngrok
+   
+   # Linux
+   wget https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-linux-amd64.tgz
+   tar xvzf ngrok-v3-stable-linux-amd64.tgz
+   sudo mv ngrok /usr/local/bin
+   ```
+
+4. **Configurar variables de entorno**
    
    Crea un archivo `.env` en la raíz del proyecto:
    ```env
@@ -41,6 +58,11 @@ Este proyecto implementa un agente de IA con la personalidad de David Goggins qu
    # Supabase Configuration
    SUPABASE_URL=https://tu-proyecto.supabase.co
    SUPABASE_KEY=tu_supabase_anon_key_aqui
+   
+   # Twilio Configuration
+   TWILIO_ACCOUNT_SID=tu_account_sid_de_twilio
+   TWILIO_AUTH_TOKEN=tu_auth_token_de_twilio
+   TWILIO_PHONE_NUMBER=whatsapp:+1234567890
    ```
 
 ## 🗄️ Configuración de Supabase
@@ -70,26 +92,68 @@ CREATE POLICY "Users can view their own workouts" ON workouts
 FOR SELECT USING (true);
 ```
 
+## 📱 Configuración de Twilio WhatsApp
+
+### 1. Configurar WhatsApp Sandbox
+1. Ve a [Twilio Console](https://console.twilio.com/)
+2. Navega a **Messaging > Settings > WhatsApp Sandbox**
+3. Copia el número de WhatsApp de Twilio
+4. Agrega tu número personal al sandbox
+
+### 2. Configurar Webhook
+1. En la misma página de WhatsApp Sandbox
+2. En **"When a message comes in"**, agrega tu URL de ngrok + `/webhook`
+3. Ejemplo: `https://abc123.ngrok.io/webhook`
+4. Guarda la configuración
+
+## 🚀 Ejecutar el Servidor
+
+### Opción 1: Script Automático (Recomendado)
+```bash
+python start_server.py
+```
+
+### Opción 2: Manual
+```bash
+# Terminal 1: Iniciar servidor
+uvicorn server:app --reload --port 8000
+
+# Terminal 2: Iniciar ngrok
+ngrok http 8000
+```
+
+## 📡 Configuración del Webhook
+
+### 1. Obtener URL de ngrok
+Después de ejecutar `ngrok http 8000`, copia la URL HTTPS:
+```
+Forwarding    https://abc123.ngrok.io -> http://localhost:8000
+```
+
+### 2. Configurar en Twilio
+1. Ve a [Twilio Console > WhatsApp Sandbox](https://console.twilio.com/us1/develop/messaging/manage/sandbox)
+2. En **"When a message comes in"**, agrega: `https://abc123.ngrok.io/webhook`
+3. Guarda los cambios
+
+### 3. Probar la conexión
+1. Envía un mensaje al número de WhatsApp de Twilio
+2. Verifica que recibas respuesta del agente de Goggins
+3. Revisa los logs del servidor para confirmar
+
 ## 🎯 Uso
 
-### Ejecutar el agente completo
-```bash
-python agente.py
-```
+### Enviar Mensajes de WhatsApp
+Simplemente envía mensajes al número de Twilio:
 
-### Usar el agente en tu código
-```python
-from agente import GogginsFitnessAgent
+- **Saludo**: "Hola, empecé mi entrenamiento"
+- **Registro**: "Bench press 3x8 @ 80kg"
+- **Más ejercicios**: "Squat 4x10 @ 100kg"
+- **Finalizar**: "Terminé mi entrenamiento"
 
-# Crear el agente
-agente = GogginsFitnessAgent()
-
-# Procesar mensaje de WhatsApp
-mensaje = "Bench press 3x8 @ 80kg"
-user_phone = "+1234567890"
-respuesta = agente.procesar_mensaje_whatsapp(mensaje, user_phone)
-print(respuesta)
-```
+### Respuestas del Agente
+- **Con progreso**: "¡BIEN! ¡Finalmente estás dejando de ser un puto perdedor!"
+- **Sin progreso**: "¡¿ESTO ES UNA BROMA?! ¡Tu último entrenamiento se está riendo de ti!"
+- **Saludos**: "¡¿QUÉ CARAJO QUIERES?! ¡No tengo tiempo para saludos de mierda!"
 
 ## 📱 Formato de Mensajes
 
@@ -125,35 +189,19 @@ El agente reconoce automáticamente entrenamientos en formato:
 - Mantiene historial de conversación
 - Analiza tendencias de progreso
 
-## 🔌 Integración con WhatsApp
+## 🔌 Endpoints de la API
 
-### Webhook Endpoint
-```python
-from flask import Flask, request, jsonify
-from agente import GogginsFitnessAgent
+### Webhook Principal
+- **POST** `/webhook` - Recibe mensajes de WhatsApp
 
-app = Flask(__name__)
-agente = GogginsFitnessAgent()
+### Utilidades
+- **GET** `/` - Página de información del webhook
+- **GET** `/health` - Estado del servidor
+- **POST** `/test-message` - Probar mensajes (desarrollo)
 
-@app.route('/webhook', methods=['POST'])
-def webhook():
-    data = request.json
-    
-    # Extraer mensaje y número de teléfono
-    mensaje = data['message']['text']
-    user_phone = data['message']['from']
-    
-    # Procesar con Goggins
-    respuesta = agente.procesar_mensaje_whatsapp(mensaje, user_phone)
-    
-    return jsonify({
-        'response': respuesta,
-        'status': 'success'
-    })
-
-if __name__ == '__main__':
-    app.run(debug=True, port=5000)
-```
+### Documentación Automática
+- **GET** `/docs` - Swagger UI
+- **GET** `/redoc` - ReDoc
 
 ## 📊 Análisis de Datos
 
@@ -199,11 +247,20 @@ patrones = {
 }
 ```
 
+### Configurar Logging
+```python
+# En server.py
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+```
+
 ## 🔍 Solución de Problemas
 
-### Error: "SUPABASE_URL y SUPABASE_KEY deben estar configuradas"
+### Error: "Variables de entorno faltantes"
 - Verifica que el archivo `.env` existe
-- Asegúrate de que las variables estén correctamente definidas
+- Asegúrate de que todas las variables estén correctamente definidas
 
 ### Error: "Incorrect API key provided"
 - Verifica que tu API key de OpenAI sea válida
@@ -213,11 +270,22 @@ patrones = {
 - Ejecuta el script SQL para crear la tabla en Supabase
 - Verifica las políticas de seguridad
 
+### Error: "Webhook not receiving messages"
+- Verifica que ngrok esté ejecutándose
+- Confirma que la URL del webhook en Twilio sea correcta
+- Revisa los logs del servidor para errores
+
+### Error: "Twilio authentication failed"
+- Verifica TWILIO_ACCOUNT_SID y TWILIO_AUTH_TOKEN
+- Asegúrate de que las credenciales sean correctas
+
 ## 📝 Estructura del Proyecto
 
 ```
 backend/
 ├── agente.py          # Agente principal de David Goggins
+├── server.py          # Servidor FastAPI con webhook
+├── start_server.py    # Script para iniciar el servidor
 ├── requirements.txt   # Dependencias del proyecto
 ├── README.md         # Este archivo
 └── .env              # Variables de entorno (crear tú)
@@ -225,11 +293,11 @@ backend/
 
 ## 🎯 Próximos Pasos
 
-1. **Integración con WhatsApp Business API**
-2. **Dashboard web con NextJS**
-3. **Análisis avanzado de progreso**
-4. **Generación automática de rutinas**
-5. **Notificaciones y recordatorios**
+1. **Dashboard web con NextJS**
+2. **Análisis avanzado de progreso**
+3. **Generación automática de rutinas**
+4. **Notificaciones y recordatorios**
+5. **Integración con más plataformas**
 
 ## 🤝 Contribuir
 
@@ -249,4 +317,5 @@ Si tienes problemas o preguntas:
 1. Revisa la sección de solución de problemas
 2. Verifica que todas las dependencias estén instaladas
 3. Asegúrate de que tu API key sea válida
-4. Confirma que la tabla de Supabase esté creada correctamente 
+4. Confirma que la tabla de Supabase esté creada correctamente
+5. Verifica la configuración del webhook en Twilio 
