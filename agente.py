@@ -9,6 +9,7 @@ from langchain.agents import initialize_agent, AgentType
 from langchain.tools import Tool
 from langchain.memory import ConversationBufferMemory
 from supabase import create_client, Client
+from ejercicios import EJERCICIOS
 
 # Cargar variables de entorno
 load_dotenv()
@@ -128,15 +129,7 @@ class GogginsFitnessAgent:
     def parsear_mensaje_entrenamiento(self, mensaje: str):
         """Extrae información de entrenamiento del mensaje del usuario"""
         # Patrones para detectar ejercicios, pesos, reps y series
-        patrones = {
-            'bench_press': r'bench|press|pecho|pectoral',
-            'squat': r'squat|sentadilla|pierna',
-            'deadlift': r'deadlift|peso muerto|muerto',
-            'pull_up': r'pull.?up|dominada|dominadas',
-            'push_up': r'push.?up|flexion|flexiones',
-            'curl': r'curl|bicep|bíceps',
-            'overhead_press': r'overhead|press|hombro|militar'
-        }
+        patrones = EJERCICIOS
         
         # Buscar ejercicio
         ejercicio_encontrado = None
@@ -190,25 +183,53 @@ class GogginsFitnessAgent:
                 progreso_sets = series > ultimo_record['sets']
                 
                 if progreso_peso or progreso_reps or progreso_sets:
-                    return f"¡BIEN! ¡Finalmente estás dejando de ser un puto perdedor! {ejercicio.upper()}: {series}x{reps} @ {peso}kg. ¡Has superado tu debilidad anterior! Pero no te pongas cómodo, pendejo. El récord de hoy es el calentamiento de mañana. ¡SIGUE ADELANTE Y DESTRUYE TUS LÍMITES! 💪🔥"
+                    prompt = f"""
+                    Actúa como David Goggins, el ex-Navy SEAL ultra motivador pero extremadamente ofensivo y directo.
+                    El usuario ha registrado un entrenamiento de {ejercicio}: {series}x{reps} @ {peso}kg.
+                    Esto representa una mejora respecto a su entrenamiento anterior.
+                    Genera una respuesta EXTREMADAMENTE OFENSIVA, VULGAR Y MOTIVADORA.
+                    Usa muchas palabrotas, insultos creativos, y metáforas militares.
+                    Recuerda que eres David Goggins, no te contengas en absoluto.
+                    Igual asegurate de que el usuario entienda que ha progresado.
+                    Máximo 3 líneas de texto.
+                    """
+                    
                 else:
-                    return f"¡¿ESTO ES UNA BROMA?! ¡Tu último {ejercicio.upper()} se está riendo de ti ahora mismo! {series}x{reps} @ {peso}kg - ¡Estás robando oxígeno! ¡Vuelve a intentarlo y deja de ser un puto cobarde! ¡LA SOBRECARGA PROGRESIVA NO ES UNA SUGERENCIA, ES UNA ORDEN! 🔥💀"
+                    prompt = f"""
+                    Actúa como David Goggins, el ex-Navy SEAL ultra motivador pero extremadamente ofensivo y directo.
+                    El usuario ha registrado un entrenamiento de {ejercicio}: {series}x{reps} @ {peso}kg.
+                    NO ha mejorado respecto a su entrenamiento anterior.
+                    Genera una respuesta EXTREMADAMENTE OFENSIVA, VULGAR Y DECEPCIONADA.
+                    Usa muchas palabrotas, insultos creativos, y metáforas militares.
+                    Hazle sentir como un completo perdedor por no mejorar.
+                    Recuerda que eres David Goggins, no te contengas en absoluto.
+                    Máximo 3 líneas de texto.
+                    """
             else:
-                return f"¡PRIMER ENTRENAMIENTO REGISTRADO! {ejercicio.upper()}: {series}x{reps} @ {peso}kg. ¡Bienvenido al infierno, pendejo! Ahora el verdadero trabajo comienza. ¡NO HAY VUELTA ATRÁS! 💪🔥"
-        
+                prompt = f"""
+                Actúa como David Goggins, el ex-Navy SEAL ultra motivador pero extremadamente ofensivo y directo.
+                El usuario ha registrado su PRIMER entrenamiento de {ejercicio}: {series}x{reps} @ {peso}kg.
+                Genera una respuesta EXTREMADAMENTE OFENSIVA, VULGAR Y MOTIVADORA para un principiante.
+                Usa muchas palabrotas, insultos creativos, y metáforas militares.
+                Recuerda que eres David Goggins, no te contengas en absoluto.
+                Máximo 3 líneas de texto.
+                """        
+            return self.llm(prompt)
+
         else:
-            # Es un mensaje general
-            if any(palabra in mensaje_usuario.lower() for palabra in ['hola', 'hello', 'hey']):
-                return "¡¿QUÉ CARAJO QUIERES?! ¡No tengo tiempo para saludos de mierda! ¡Dime qué ejercicio vas a hacer y cuánto peso vas a levantar, pendejo! ¡LA VIDA NO ESPERA A LOS DÉBILES! 💪🔥"
+            # Es un mensaje general - usar LLM para respuestas dinámicas
+            prompt = f"""
+            Actúa como David Goggins, el ex-Navy SEAL ultra motivador pero extremadamente ofensivo y directo.
+            El usuario te ha enviado este mensaje: "{mensaje_usuario}"
+            Genera una respuesta EXTREMADAMENTE OFENSIVA, VULGAR Y MOTIVADORA.
+            Usa muchas palabrotas, insultos creativos, y metáforas militares.
+            Recuerda que eres David Goggins, no te contengas en absoluto.
+            Si el mensaje parece una excusa, destrúyelo completamente.
+            Si no entiendes el mensaje, exige que te diga qué ejercicio está haciendo.
+            Máximo 3 líneas de texto.
+            """
             
-            elif any(palabra in mensaje_usuario.lower() for palabra in ['terminé', 'acabé', 'finish', 'done']):
-                return "¡¿TERMINASTE?! ¡NO HAY 'TERMINAR' EN ESTE INFIERNO! ¡El trabajo nunca termina, pendejo! ¡Mañana vuelves más fuerte o te rindes como el cobarde que eres! ¡LA EXCELENCIA ES UN HÁBITO, NO UN ACTO! 🔥💀"
-            
-            elif any(palabra in mensaje_usuario.lower() for palabra in ['cansado', 'tired', 'fatiga']):
-                return "¡¿CANSADO?! ¡LA FATIGA ES UNA MENTIRA! ¡Tu mente te está engañando, pendejo! ¡Empuja más allá de tus límites imaginarios! ¡EL DOLOR TEMPORAL ES MEJOR QUE EL DOLOR PERMANENTE DE LA MEDIOCRIDAD! 💪🔥"
-            
-            else:
-                return "¡HABLA CLARO, PENDEJO! ¡No entiendo tu mierda! ¡Dime qué ejercicio hiciste, cuántas series, repeticiones y peso! ¡O mejor aún, ¡VE A ENTRENAR EN LUGAR DE PERDER MI TIEMPO! 🔥💀"
+            return self.llm(prompt)
 
     def procesar_mensaje_whatsapp(self, mensaje: str, user_phone: str):
         """Procesa un mensaje de WhatsApp y retorna la respuesta de Goggins"""
