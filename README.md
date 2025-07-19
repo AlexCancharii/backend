@@ -1,19 +1,22 @@
-# 🤖 Agente con LangChain y GPT-4
+# 🔥 Agente de Fitness David Goggins
 
-Este proyecto implementa un agente inteligente usando LangChain y GPT-4 que puede realizar múltiples tareas como cálculos matemáticos, responder preguntas y proporcionar información del sistema.
+Este proyecto implementa un agente de IA con la personalidad de David Goggins que registra entrenamientos de usuarios a través de WhatsApp y los almacena en Supabase. El agente es implacable, directo y brutalmente honesto, motivando a los usuarios a superar sus límites.
 
 ## 🚀 Características
 
-- **Modelo**: GPT-4 de OpenAI
-- **Memoria**: Conversación persistente
-- **Herramientas**: Calculadora e información del sistema
-- **Configuración**: Variables de entorno seguras
+- **Personalidad de David Goggins**: Lenguaje crudo, directo y motivacional
+- **Registro de Entrenamientos**: Via WhatsApp con lenguaje natural
+- **Sobrecarga Progresiva**: Análisis automático de progreso
+- **Base de Datos Supabase**: Almacenamiento persistente de records
+- **Memoria de Conversación**: Contexto de entrenamientos anteriores
+- **Análisis de Progreso**: Comparación automática con records anteriores
 
 ## 📋 Requisitos Previos
 
 1. **Python 3.8+** instalado
 2. **Cuenta de OpenAI** con saldo disponible
-3. **API Key de OpenAI**
+3. **Proyecto Supabase** configurado
+4. **API Key de OpenAI**
 
 ## 🔧 Instalación
 
@@ -32,8 +35,40 @@ Este proyecto implementa un agente inteligente usando LangChain y GPT-4 que pued
    
    Crea un archivo `.env` en la raíz del proyecto:
    ```env
-   OPENAI_API_KEY=tu_api_key_de_openai_aqui
+   # OpenAI API Key
+   OPENAI_API_KEY=sk-tu_api_key_de_openai_aqui
+   
+   # Supabase Configuration
+   SUPABASE_URL=https://tu-proyecto.supabase.co
+   SUPABASE_KEY=tu_supabase_anon_key_aqui
    ```
+
+## 🗄️ Configuración de Supabase
+
+### 1. Crear la tabla de entrenamientos
+```sql
+CREATE TABLE workouts (
+  id SERIAL PRIMARY KEY,
+  user_phone TEXT NOT NULL,
+  exercise TEXT NOT NULL,
+  sets INT NOT NULL,
+  reps INT NOT NULL,
+  weight_kg FLOAT NOT NULL,
+  is_progress BOOLEAN NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+```
+
+### 2. Configurar políticas de seguridad
+```sql
+-- Permitir inserción de entrenamientos
+CREATE POLICY "Users can insert their own workouts" ON workouts
+FOR INSERT WITH CHECK (true);
+
+-- Permitir lectura de entrenamientos propios
+CREATE POLICY "Users can view their own workouts" ON workouts
+FOR SELECT USING (true);
+```
 
 ## 🎯 Uso
 
@@ -44,74 +79,157 @@ python agente.py
 
 ### Usar el agente en tu código
 ```python
-from agente import configurar_agente, ejecutar_agente
+from agente import GogginsFitnessAgent
 
-# Configurar el agente
-agente = configurar_agente()
+# Crear el agente
+agente = GogginsFitnessAgent()
 
-# Hacer una pregunta
-respuesta = ejecutar_agente(agente, "¿Cuánto es 25 * 4?")
+# Procesar mensaje de WhatsApp
+mensaje = "Bench press 3x8 @ 80kg"
+user_phone = "+1234567890"
+respuesta = agente.procesar_mensaje_whatsapp(mensaje, user_phone)
 print(respuesta)
 ```
 
-## 🛠️ Herramientas Disponibles
+## 📱 Formato de Mensajes
 
-### 1. Calculadora
-- **Descripción**: Realiza cálculos matemáticos
-- **Ejemplo**: "¿Cuánto es 15 * 23?"
+### Registro de Entrenamiento
+El agente reconoce automáticamente entrenamientos en formato:
+- `"Bench press 3x8 @ 80kg"`
+- `"Squat 4x10 @ 100kg"`
+- `"Deadlift 3x5 @ 120kg"`
 
-### 2. Información del Sistema
-- **Descripción**: Proporciona información sobre el sistema operativo y Python
-- **Ejemplo**: "¿Qué información tienes sobre el sistema?"
+### Ejercicios Soportados
+- **bench_press**: bench, press, pecho, pectoral
+- **squat**: squat, sentadilla, pierna
+- **deadlift**: deadlift, peso muerto, muerto
+- **pull_up**: pull-up, dominada, dominadas
+- **push_up**: push-up, flexión, flexiones
+- **curl**: curl, bicep, bíceps
+- **overhead_press**: overhead, press, hombro, militar
+
+## 🛠️ Funcionalidades del Agente
+
+### 1. Análisis de Progreso
+- Compara automáticamente con el último record
+- Detecta sobrecarga progresiva (peso, reps, series)
+- Responde según el nivel de progreso
+
+### 2. Personalidad de Goggins
+- **Con progreso**: "¡BIEN! ¡Finalmente estás dejando de ser un puto perdedor!"
+- **Sin progreso**: "¡¿ESTO ES UNA BROMA?! ¡Tu último entrenamiento se está riendo de ti!"
+- **Saludos**: "¡¿QUÉ CARAJO QUIERES?! ¡No tengo tiempo para saludos de mierda!"
+
+### 3. Memoria y Contexto
+- Recuerda entrenamientos anteriores
+- Mantiene historial de conversación
+- Analiza tendencias de progreso
+
+## 🔌 Integración con WhatsApp
+
+### Webhook Endpoint
+```python
+from flask import Flask, request, jsonify
+from agente import GogginsFitnessAgent
+
+app = Flask(__name__)
+agente = GogginsFitnessAgent()
+
+@app.route('/webhook', methods=['POST'])
+def webhook():
+    data = request.json
+    
+    # Extraer mensaje y número de teléfono
+    mensaje = data['message']['text']
+    user_phone = data['message']['from']
+    
+    # Procesar con Goggins
+    respuesta = agente.procesar_mensaje_whatsapp(mensaje, user_phone)
+    
+    return jsonify({
+        'response': respuesta,
+        'status': 'success'
+    })
+
+if __name__ == '__main__':
+    app.run(debug=True, port=5000)
+```
+
+## 📊 Análisis de Datos
+
+### Consultas Útiles en Supabase
+```sql
+-- Últimos entrenamientos de un usuario
+SELECT * FROM workouts 
+WHERE user_phone = '+1234567890' 
+ORDER BY created_at DESC 
+LIMIT 10;
+
+-- Progreso por ejercicio
+SELECT exercise, 
+       MAX(weight_kg) as max_weight,
+       MAX(reps) as max_reps,
+       COUNT(*) as total_workouts
+FROM workouts 
+WHERE user_phone = '+1234567890'
+GROUP BY exercise;
+
+-- Entrenamientos con progreso
+SELECT * FROM workouts 
+WHERE user_phone = '+1234567890' 
+AND is_progress = true
+ORDER BY created_at DESC;
+```
 
 ## ⚙️ Configuración Avanzada
 
-### Parámetros del modelo
-Puedes modificar estos parámetros en la función `configurar_agente()`:
+### Personalizar Respuestas
+Modifica la función `generar_respuesta_goggins()` para ajustar:
+- Nivel de intensidad del lenguaje
+- Tipos de ejercicios reconocidos
+- Criterios de progreso
 
+### Agregar Nuevos Ejercicios
 ```python
-llm = OpenAI(
-    model_name="gpt-4",     # Modelo a usar
-    temperature=0.7,        # Creatividad (0.0-1.0)
-    max_tokens=1000         # Máximo tokens en respuesta
-)
-```
-
-### Agregar nuevas herramientas
-Para agregar más herramientas, modifica la lista `herramientas`:
-
-```python
-herramientas = [
-    # ... herramientas existentes ...
-    Tool(
-        name="Nueva Herramienta",
-        func=tu_funcion,
-        description="Descripción de la herramienta"
-    )
-]
+patrones = {
+    'bench_press': r'bench|press|pecho|pectoral',
+    'squat': r'squat|sentadilla|pierna',
+    # Agregar nuevo ejercicio
+    'new_exercise': r'patron|regex|aqui'
+}
 ```
 
 ## 🔍 Solución de Problemas
 
-### Error: "OPENAI_API_KEY no está configurada"
+### Error: "SUPABASE_URL y SUPABASE_KEY deben estar configuradas"
 - Verifica que el archivo `.env` existe
-- Asegúrate de que la variable `OPENAI_API_KEY` esté correctamente definida
+- Asegúrate de que las variables estén correctamente definidas
 
-### Error: "No module named 'langchain'"
-- Ejecuta: `pip install -r requirements.txt`
+### Error: "Incorrect API key provided"
+- Verifica que tu API key de OpenAI sea válida
+- Asegúrate de tener saldo en tu cuenta
 
-### Error: "Insufficient funds"
-- Verifica que tu cuenta de OpenAI tenga saldo disponible
+### Error: "Table 'workouts' does not exist"
+- Ejecuta el script SQL para crear la tabla en Supabase
+- Verifica las políticas de seguridad
 
 ## 📝 Estructura del Proyecto
 
 ```
 backend/
-├── agente.py          # Archivo principal del agente
+├── agente.py          # Agente principal de David Goggins
 ├── requirements.txt   # Dependencias del proyecto
 ├── README.md         # Este archivo
 └── .env              # Variables de entorno (crear tú)
 ```
+
+## 🎯 Próximos Pasos
+
+1. **Integración con WhatsApp Business API**
+2. **Dashboard web con NextJS**
+3. **Análisis avanzado de progreso**
+4. **Generación automática de rutinas**
+5. **Notificaciones y recordatorios**
 
 ## 🤝 Contribuir
 
@@ -130,4 +248,5 @@ Este proyecto está bajo la Licencia MIT.
 Si tienes problemas o preguntas:
 1. Revisa la sección de solución de problemas
 2. Verifica que todas las dependencias estén instaladas
-3. Asegúrate de que tu API key sea válida 
+3. Asegúrate de que tu API key sea válida
+4. Confirma que la tabla de Supabase esté creada correctamente 
