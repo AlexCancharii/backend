@@ -21,23 +21,26 @@ Este proyecto implementa un agente de IA con la personalidad de David Goggins qu
 ## 🔧 Instalación
 
 1. **Clonar o descargar el proyecto**
+
    ```bash
    git clone <tu-repositorio>
    cd backend
    ```
 
 2. **Instalar dependencias**
+
    ```bash
    pip install -r requirements.txt
    ```
 
 3. **Configurar variables de entorno**
-   
+
    Crea un archivo `.env` en la raíz del proyecto:
+
    ```env
    # OpenAI API Key
    OPENAI_API_KEY=sk-tu_api_key_de_openai_aqui
-   
+
    # Supabase Configuration
    SUPABASE_URL=https://tu-proyecto.supabase.co
    SUPABASE_KEY=tu_supabase_anon_key_aqui
@@ -46,6 +49,7 @@ Este proyecto implementa un agente de IA con la personalidad de David Goggins qu
 ## 🗄️ Configuración de Supabase
 
 ### 1. Crear la tabla de entrenamientos
+
 ```sql
 CREATE TABLE workouts (
   id SERIAL PRIMARY KEY,
@@ -60,6 +64,7 @@ CREATE TABLE workouts (
 ```
 
 ### 2. Configurar políticas de seguridad
+
 ```sql
 -- Permitir inserción de entrenamientos
 CREATE POLICY "Users can insert their own workouts" ON workouts
@@ -73,11 +78,13 @@ FOR SELECT USING (true);
 ## 🎯 Uso
 
 ### Ejecutar el agente completo
+
 ```bash
 python agente.py
 ```
 
 ### Usar el agente en tu código
+
 ```python
 from agente import GogginsFitnessAgent
 
@@ -94,12 +101,15 @@ print(respuesta)
 ## 📱 Formato de Mensajes
 
 ### Registro de Entrenamiento
+
 El agente reconoce automáticamente entrenamientos en formato:
+
 - `"Bench press 3x8 @ 80kg"`
 - `"Squat 4x10 @ 100kg"`
 - `"Deadlift 3x5 @ 120kg"`
 
 ### Ejercicios Soportados
+
 - **bench_press**: bench, press, pecho, pectoral
 - **squat**: squat, sentadilla, pierna
 - **deadlift**: deadlift, peso muerto, muerto
@@ -111,16 +121,19 @@ El agente reconoce automáticamente entrenamientos en formato:
 ## 🛠️ Funcionalidades del Agente
 
 ### 1. Análisis de Progreso
+
 - Compara automáticamente con el último record
 - Detecta sobrecarga progresiva (peso, reps, series)
 - Responde según el nivel de progreso
 
 ### 2. Personalidad de Goggins
+
 - **Con progreso**: "¡BIEN! ¡Finalmente estás dejando de ser un puto perdedor!"
 - **Sin progreso**: "¡¿ESTO ES UNA BROMA?! ¡Tu último entrenamiento se está riendo de ti!"
 - **Saludos**: "¡¿QUÉ CARAJO QUIERES?! ¡No tengo tiempo para saludos de mierda!"
 
 ### 3. Memoria y Contexto
+
 - Recuerda entrenamientos anteriores
 - Mantiene historial de conversación
 - Analiza tendencias de progreso
@@ -128,6 +141,7 @@ El agente reconoce automáticamente entrenamientos en formato:
 ## 🔌 Integración con WhatsApp
 
 ### Webhook Endpoint
+
 ```python
 from flask import Flask, request, jsonify
 from agente import GogginsFitnessAgent
@@ -138,14 +152,14 @@ agente = GogginsFitnessAgent()
 @app.route('/webhook', methods=['POST'])
 def webhook():
     data = request.json
-    
+
     # Extraer mensaje y número de teléfono
     mensaje = data['message']['text']
     user_phone = data['message']['from']
-    
+
     # Procesar con Goggins
     respuesta = agente.procesar_mensaje_whatsapp(mensaje, user_phone)
-    
+
     return jsonify({
         'response': respuesta,
         'status': 'success'
@@ -158,25 +172,26 @@ if __name__ == '__main__':
 ## 📊 Análisis de Datos
 
 ### Consultas Útiles en Supabase
+
 ```sql
 -- Últimos entrenamientos de un usuario
-SELECT * FROM workouts 
-WHERE user_phone = '+1234567890' 
-ORDER BY created_at DESC 
+SELECT * FROM workouts
+WHERE user_phone = '+1234567890'
+ORDER BY created_at DESC
 LIMIT 10;
 
 -- Progreso por ejercicio
-SELECT exercise, 
+SELECT exercise,
        MAX(weight_kg) as max_weight,
        MAX(reps) as max_reps,
        COUNT(*) as total_workouts
-FROM workouts 
+FROM workouts
 WHERE user_phone = '+1234567890'
 GROUP BY exercise;
 
 -- Entrenamientos con progreso
-SELECT * FROM workouts 
-WHERE user_phone = '+1234567890' 
+SELECT * FROM workouts
+WHERE user_phone = '+1234567890'
 AND is_progress = true
 ORDER BY created_at DESC;
 ```
@@ -184,12 +199,15 @@ ORDER BY created_at DESC;
 ## ⚙️ Configuración Avanzada
 
 ### Personalizar Respuestas
+
 Modifica la función `generar_respuesta_goggins()` para ajustar:
+
 - Nivel de intensidad del lenguaje
 - Tipos de ejercicios reconocidos
 - Criterios de progreso
 
 ### Agregar Nuevos Ejercicios
+
 ```python
 patrones = {
     'bench_press': r'bench|press|pecho|pectoral',
@@ -202,14 +220,17 @@ patrones = {
 ## 🔍 Solución de Problemas
 
 ### Error: "SUPABASE_URL y SUPABASE_KEY deben estar configuradas"
+
 - Verifica que el archivo `.env` existe
 - Asegúrate de que las variables estén correctamente definidas
 
 ### Error: "Incorrect API key provided"
+
 - Verifica que tu API key de OpenAI sea válida
 - Asegúrate de tener saldo en tu cuenta
 
 ### Error: "Table 'workouts' does not exist"
+
 - Ejecuta el script SQL para crear la tabla en Supabase
 - Verifica las políticas de seguridad
 
@@ -246,7 +267,8 @@ Este proyecto está bajo la Licencia MIT.
 ## 🆘 Soporte
 
 Si tienes problemas o preguntas:
+
 1. Revisa la sección de solución de problemas
 2. Verifica que todas las dependencias estén instaladas
 3. Asegúrate de que tu API key sea válida
-4. Confirma que la tabla de Supabase esté creada correctamente 
+4. Confirma que la tabla de Supabase esté creada correctamente
