@@ -1,11 +1,10 @@
 import os
 import sys
 from dotenv import load_dotenv
-from langchain_openai import ChatOpenAI
-from langchain.agents import AgentExecutor, create_openai_functions_agent
+from langchain.llms import OpenAI
+from langchain.agents import initialize_agent, AgentType
 from langchain.tools import Tool
 from langchain.memory import ConversationBufferMemory
-from langchain.prompts import ChatPromptTemplate, MessagesPlaceholder
 
 # Cargar variables de entorno
 load_dotenv()
@@ -19,8 +18,8 @@ def configurar_agente():
         raise ValueError("OPENAI_API_KEY no está configurada en el archivo .env")
     
     # Inicializar el modelo de lenguaje (GPT-4)
-    llm = ChatOpenAI(
-        model="gpt-4",       # Usar GPT-4
+    llm = OpenAI(
+        model_name="gpt-4",  # Usar GPT-4
         temperature=0.7,     # Controlar la creatividad (0.0 = muy conservador, 1.0 = muy creativo)
         max_tokens=1000      # Máximo número de tokens en la respuesta
     )
@@ -45,39 +44,25 @@ def configurar_agente():
         )
     ]
     
-    # Crear el prompt del agente
-    prompt = ChatPromptTemplate.from_messages([
-        ("system", "Eres un asistente útil que puede realizar cálculos y proporcionar información del sistema."),
-        MessagesPlaceholder(variable_name="chat_history"),
-        ("human", "{input}"),
-        MessagesPlaceholder(variable_name="agent_scratchpad"),
-    ])
-    
-    # Crear el agente
-    agente = create_openai_functions_agent(
+    # Inicializar el agente
+    agente = initialize_agent(
+        tools=herramientas,
         llm=llm,
-        tools=herramientas,
-        prompt=prompt
-    )
-    
-    # Crear el ejecutor del agente
-    agente_ejecutor = AgentExecutor(
-        agent=agente,
-        tools=herramientas,
+        agent=AgentType.CONVERSATIONAL_REACT_DESCRIPTION,
         memory=memory,
         verbose=True,  # Mostrar el proceso de pensamiento del agente
         handle_parsing_errors=True
     )
     
-    return agente_ejecutor
+    return agente
 
 def ejecutar_agente(agente, pregunta):
     """
     Ejecuta el agente con una pregunta específica
     """
     try:
-        respuesta = agente.invoke({"input": pregunta})
-        return respuesta["output"]
+        respuesta = agente.run(pregunta)
+        return respuesta
     except Exception as e:
         return f"Error al ejecutar el agente: {str(e)}"
 
