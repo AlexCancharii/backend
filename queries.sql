@@ -7,12 +7,12 @@ CREATE TABLE exercise (
 
 CREATE TABLE workout_session (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL,
   started_at TIMESTAMP NOT NULL,
   ended_at TIMESTAMP,
+  calories_burned FLOAT DEFAULT 0,
   created_at TIMESTAMP DEFAULT NOW()
 );
-
 
 CREATE TABLE series (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
