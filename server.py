@@ -2,10 +2,14 @@ import os
 import logging
 from fastapi import FastAPI, Request, Form, HTTPException
 from fastapi.responses import HTMLResponse
+from fastapi.middleware.cors import CORSMiddleware
 from twilio.rest import Client
 from twilio.twiml.messaging_response import MessagingResponse
 from dotenv import load_dotenv
 from agente import GogginsFitnessAgent
+from web_agent import GogginsFitnessWebAgent
+from pydantic import BaseModel
+from typing import Literal
 
 # Configurar logging
 logging.basicConfig(level=logging.INFO)
@@ -33,8 +37,23 @@ app = FastAPI(
     version="1.0.0"
 )
 
+# Configurar CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Permite todos los orígenes
+    allow_credentials=True,
+    allow_methods=["*"],  # Permite todos los métodos
+    allow_headers=["*"],  # Permite todos los headers
+)
+
 # Inicializar agente de Goggins
 goggins_agent = GogginsFitnessAgent()
+
+# Inicializar agente web de Goggins
+goggins_web_agent = GogginsFitnessWebAgent()
+
+class ConsultaRequest(BaseModel):
+    tipo_consulta: Literal["progreso", "estadisticas", "recomendaciones"]
 
 @app.get("/", response_class=HTMLResponse)
 async def root():
@@ -130,6 +149,25 @@ async def webhook(request: Request):
         resp.message("¡ERROR EN EL SISTEMA, PENDEJO! ¡PERO ESO NO ES EXCUSA PARA NO ENTRENAR! 🔥")
         
         return HTMLResponse(content=str(resp), media_type="text/html")
+
+@app.post("/web-consult")
+async def web_consultation(consulta: ConsultaRequest):
+    """Endpoint para consultas web del agente Goggins"""
+    try:
+        # Procesar consulta web
+        respuesta = goggins_web_agent.procesar_consulta_web(consulta.tipo_consulta)
+        
+        return {
+            "success": True,
+            "message": respuesta
+        }
+        
+    except Exception as e:
+        logger.error(f"Error en consulta web: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail="¡ERROR EN EL SISTEMA, PEDAZO DE MIERDA! ¡PERO ESO NO ES EXCUSA PARA SER UN VAGO!"
+        )
 
 @app.get("/health")
 async def health_check():
